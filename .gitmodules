@@ -1,0 +1,4 @@
+[submodule "extern/VTFLib"]
+	path = extern/VTFLib
+	url = https://github.com/coreyzd/VTFLib.git
+	branch = linux-build

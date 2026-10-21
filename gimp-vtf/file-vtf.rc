@@ -1,31 +1,28 @@
-#include <windows.h>
-#include <commctrl.h>
-#include <richedit.h>
-#include <resources.h>
+#include <winver.h>
 
-1001               ICON           "file-vtf.ico"
+1 ICON "file-vtf.ico"
 
-LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+LANGUAGE 0, 0
 1 VERSIONINFO
-	FILEVERSION		1,2,1,0
-	PRODUCTVERSION	2,8,0,0
-	FILETYPE		VFT_APP
-	FILESUBTYPE		VFT2_UNKNOWN
-	FILEFLAGSMASK	0x00000000
-	FILEFLAGS		0x00000000
+	FILEVERSION     2,0,0,0
+	PRODUCTVERSION  3,0,0,0
+	FILETYPE        VFT_APP
+	FILESUBTYPE     VFT2_UNKNOWN
+	FILEFLAGSMASK   0x00000000
+	FILEFLAGS       0x00000000
 {
 	BLOCK "StringFileInfo"
 	{
 		BLOCK "08090025"
 		{
-			VALUE "Comments", "Adds Valve Texture Format support to the GIMP"
-			VALUE "FileDescription", "GIMP VTF plugin"
-			VALUE "FileVersion", "1.2.1"
-			VALUE "InternalName", "file-vtf"
+			VALUE "Comments",         "Adds Valve Texture Format support to GIMP 3"
+			VALUE "FileDescription",  "GIMP VTF plug-in"
+			VALUE "FileVersion",      "2.0.0"
+			VALUE "InternalName",     "file-vtf"
 			VALUE "OriginalFilename", "file-vtf.exe"
-			VALUE "ProductName", "GIMP"
-			VALUE "ProductVersion", "2.8.0"
-			VALUE "LegalCopyright", "LGPL 2.1"
+			VALUE "ProductName",      "GIMP"
+			VALUE "ProductVersion",   "3.0"
+			VALUE "LegalCopyright",   "LGPL 2.1"
 		}
 	}
 	BLOCK "VarFileInfo"
@@ -33,5 +30,3 @@ LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 		VALUE "Translation", 0x0809, 0x0025
 	}
 }
-
-MO_FILE_EN IDR_LOCALISATION "file-vtf_en.mo"

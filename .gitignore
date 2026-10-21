@@ -1,16 +1,7 @@
-
-*.sdf
-*.suo
-*.mo
+/build*/
+/out/
+/.vs/
+/.vscode/
+CMakeUserPresets.json
 *.user
-*.pdb
-*.exe
-*.dll
-*.lib
-*.def
-/bin64
-/bin
-/gimp-vtf/x64
-/gimp-vtf/Debug
-/gimp-vtf/Release
-gimp-vtf.props # We want the user to be able to make local modifications to this file
+*.mo

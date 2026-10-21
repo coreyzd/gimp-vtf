@@ -1,7 +1,8 @@
 /*
  * GIMP VTF
  * Copyright (C) 2010 Tom Edwards
-
+ * GIMP 3 / VTFLib++ / Linux port (C) 2026 Corey Holt
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -12,135 +13,173 @@
 #ifndef FILE_VTF_H
 #define FILE_VTF_H
 
-#include "VTFLib.h"
-
 #include <string.h>
 
-#include "config.h.win32"
 #include <libgimp/gimp.h>
-#include <glib/gstdio.h>
-#define HAVE_BIND_TEXTDOMAIN_CODESET
-#include "libgimp/stdplugins-intl.h"
+#include <glib/gi18n-lib.h>
 
-#define SAVE_PROC		"file-vtf-save"
-#define LOAD_PROC		"file-vtf-load"
-#define THUMB_PROC		"file-vtf-load-thumb"
-#define PLUG_IN_BINARY	"file-vtf"
-#define TEXT_DOMAIN		"file-vtf"
+#include "VTFLib.h"
 
-GimpParam	vtf_ret_values[4];
+#define LOAD_PROC        "file-vtf-load"
+#define THUMB_PROC       "file-vtf-load-thumb"
+#define EXPORT_PROC      "file-vtf-export"
+#define PLUG_IN_BINARY   "file-vtf"
+#define PLUG_IN_ROLE     "gimp-file-vtf"
 
-gint32		image_ID;
-GimpRunMode	run_mode;
-gchar*		filename;
+#define VTF_PARASITE_NAME   "gimp-vtf-export-options"
+#define VTF_HELP_URI        "https://developer.valvesoftware.com/wiki/VTF"
 
-gchar* plugin_dir;
-gchar* plugin_locale_dir;
+/*
+ * Pixel formats offered by the exporter
+ */
 
-vlBool IsPowerOfTwo(vlUInt uiSize);
-vlUInt NextPowerOfTwo(vlUInt uiSize);
-
-void record_error(gchar* message, GimpPDBStatusType type );
-void record_error_mem();
-
-typedef struct vtfFormat
+typedef struct
 {
-	gchar*			label;
-	VTFImageFormat	vlFormat;
-	gchar*			alpha_label;
-	gboolean		compressed;
-} vtfFormat_t;
+  const gchar    *id;          /* stable identifier, used by the PDB and in saved settings */
+  const gchar    *label;
+  VTFImageFormat  format;
+  const gchar    *alpha_label; /* "-" if the format has no alpha channel */
+  gboolean        compressed;
+} VtfFormat;
 
-static const vtfFormat_t vtf_formats[] = {
-	{ "DXT1",		IMAGE_FORMAT_DXT1,		"-", TRUE },
-	{ "DXT1 with alpha", IMAGE_FORMAT_DXT1_ONEBITALPHA, "1-bit", TRUE },
-	{ "DXT3",		IMAGE_FORMAT_DXT3,		"8-bit", TRUE },
-	{ "DXT5",		IMAGE_FORMAT_DXT5,		"8-bit", TRUE },
-	{ "RGB888",		IMAGE_FORMAT_RGB888,	"-", FALSE },
-//	{ "RGB888 Bluescreen", IMAGE_FORMAT_RGB888_BLUESCREEN, "-", FALSE },
-	{ "RGBA8888",	IMAGE_FORMAT_RGBA8888,	"8-bit", FALSE },
-	{ "BGRA4444",	IMAGE_FORMAT_BGRA4444,	"4-bit", FALSE },
-	{ "RGB565",		IMAGE_FORMAT_RGB565,	"-", FALSE },
-	{ "I8",			IMAGE_FORMAT_I8,		"-", FALSE },
-	{ "A8",			IMAGE_FORMAT_A8,		"8-bit", FALSE },
-	{ "IA88",		IMAGE_FORMAT_IA88,		"8-bit", FALSE },
-//	{ "P8",			IMAGE_FORMAT_P8,		"-", FALSE }, // Palleted. Unsupported by VTFLib.
-//	{ "BGRX8888",	IMAGE_FORMAT_BGRX8888,	"-", FALSE },
-//	{ "BGR565",		IMAGE_FORMAT_BGR565,	"-", FALSE },
-//	{ "BGRX5551",	IMAGE_FORMAT_BGRX5551,	"-", FALSE },
-//	{ "BGRA5551",	IMAGE_FORMAT_BGRA5551,	"8-bit", FALSE },
-//	{ "UV88",		IMAGE_FORMAT_UV88,		"-", FALSE },
-//	{ "UVWQ8888",	IMAGE_FORMAT_UVWQ8888,	"8-bit", FALSE },
-//	{ "RGBA16161616 float",	IMAGE_FORMAT_RGBA16161616F,	"16-bit", FALSE },
-//	{ "RGBA16161616 int",	IMAGE_FORMAT_RGBA16161616,	"16-bit", FALSE },
-//	{ "UVLX8888",	IMAGE_FORMAT_UVLX8888,	"8-bit", FALSE },
-};
+extern const VtfFormat vtf_formats[];
+extern const guint     vtf_num_formats;
 
-static const guint num_vtf_formats = sizeof(vtf_formats)/sizeof(vtfFormat_t);
+gboolean     vtf_format_has_alpha        (gint            index);
+gboolean     vtf_format_is_compressed    (gint            index);
+gint         vtf_format_index_from_id    (const gchar    *id);
+gint         vtf_format_index_from_vtflib(VTFImageFormat  format);
+gboolean     vtflib_format_has_alpha     (VTFImageFormat  format);
+GimpChoice * vtf_format_choice_new       (void);
 
-static gboolean vtf_format_has_alpha(guint index)
+/*
+ * Per-layer-group export options
+ */
+
+typedef enum
 {
-	return vtf_formats[index].alpha_label[0] != '-';
-}
-static gboolean vtf_format_is_compressed(guint index)
+  VTF_LAYERS_MERGE_VISIBLE = 0,
+  VTF_LAYERS_ANIMATION,
+  VTF_LAYERS_ENVMAP,
+  VTF_LAYERS_VOLUME
+} VtfLayerUse;
+
+typedef enum
 {
-	return vtf_formats[index].compressed;
-}
-static gboolean vtflib_format_has_alpha(VTFImageFormat format)
+  VTF_BUMP_NONE = 0,
+  VTF_BUMP_NORMAL,
+  VTF_BUMP_SSBUMP
+} VtfBumpType;
+
+#define VTF_VERSION_MIN     2
+#define VTF_VERSION_MAX     6
+#define VTF_VERSION_DEFAULT 4
+
+typedef struct
 {
-	guint i;
-	for (i=0; i<num_vtf_formats; i++)
-		if ( vtf_formats[i].vlFormat == format)
-			return vtf_format_has_alpha(i);
-	return FALSE;
-}
+  gboolean    enabled;        /* export this layer group? */
 
-// Save options
+  gint        version;        /* 7.n */
+  gboolean    advanced;       /* pick the pixel format from the full list */
 
-typedef enum VtfLayerUse
+  /* simple format selection */
+  gboolean    with_alpha;
+  gboolean    compress;
+
+  /* advanced format selection (index into vtf_formats) */
+  gint        format;
+
+  gboolean    clamp;
+  gboolean    no_lod;
+  gboolean    mipmaps;
+  VtfBumpType bump;
+  VtfLayerUse layer_use;
+  guint       alpha_layer_tattoo;
+
+  guint32     general_flags;  /* flags carried over from an imported VTF */
+
+  /* LOD control resource: log2 of the clamped resolution, 0 = unset */
+  gint        lod_u;
+  gint        lod_v;
+} VtfOptions;
+
+void     vtf_options_init_default (VtfOptions        *opt);
+gint     vtf_options_get_format   (const VtfOptions  *opt,
+                                   GimpImageBaseType  base_type);
+
+/* Settings are kept as parasites on the layer group (or on the image when
+ * there are no layer groups), so they are saved inside the XCF. */
+gboolean vtf_options_load         (VtfOptions        *opt,
+                                   GimpImage         *image,
+                                   GimpItem          *group);
+void     vtf_options_store        (const VtfOptions  *opt,
+                                   GimpImage         *image,
+                                   GimpItem          *group);
+
+/* Settings written by gimp-vtf 1.x for GIMP 2.8, in "<image>.xcf.vtf-settings" */
+gboolean vtf_options_load_legacy  (VtfOptions        *opt,
+                                   GimpImage         *image,
+                                   gint32             key);
+
+/*
+ * Export state: one entry per top-level layer group
+ */
+
+typedef struct
 {
-	VTF_MERGE_VISIBLE = 0,
-	VTF_ANIMATION,
-	VTF_ENVMAP,
-	VTF_VOLUME
-} VtfLayerUse_t;
+  GimpItem   *item;         /* NULL when the image has no layer groups */
+  guint       tattoo;
+  gchar      *name;
+  GFile      *file;         /* destination */
+  gchar      *display_name; /* destination file name, for the UI */
+  gboolean    is_main;      /* written to the file name GIMP asked for */
+  gint        num_children;
+  VtfOptions  opt;
+} VtfGroup;
 
-typedef enum VtfBumpType
+typedef struct
 {
-	NOT_BUMP = 0,
-	BUMP,
-	SSBUMP
-} VtfBumpType_t;
+  GimpImage  *image;
+  GFile      *file;
+  gint        width;
+  gint        height;
+  gint        exponent_u;   /* log2(width)  */
+  gint        exponent_v;   /* log2(height) */
+  gboolean    has_groups;   /* FALSE: whole image exported as one VTF */
+  GArray     *groups;       /* of VtfGroup */
+  guint       initial_group;
+} VtfExport;
 
-typedef struct VtfSaveOptions
-{
-	gboolean	Enabled; // a layer group property really, but it needs to be saved
+/* file-vtf-load.c */
+GimpImage * vtf_load_image     (GFile     *file,
+                                GError   **error);
+GimpImage * vtf_load_thumbnail (GFile     *file,
+                                gint       size,
+                                gint      *width,
+                                gint      *height,
+                                gint      *num_layers,
+                                GError   **error);
 
-	guint8		Version; // 7.n
-	gboolean	AdvancedSetup;
+/* file-vtf-save.c */
+gboolean    vtf_export_prepare (VtfExport *exp,
+                                GimpImage *image,
+                                GFile     *file,
+                                GError   **error);
+gboolean    vtf_export_run     (VtfExport *exp,
+                                gboolean   interactive,
+                                GError   **error);
+void        vtf_export_clear   (VtfExport *exp);
 
-	// Simple
-	gboolean	WithAlpha;
-	gboolean	Compress;
-	//Advanced
-	guint8		PixelFormat;
+/* file-vtf-ui.c */
+gboolean    vtf_export_dialog  (VtfExport *exp);
 
-	// Universal
-	gboolean	Clamp;
-	gboolean	NoLOD;
-	gboolean	WithMips;
-	VtfBumpType_t	BumpType;
-	VtfLayerUse_t	LayerUse;
-	gint32		AlphaLayerTattoo;
+/* file-vtf.c */
+gboolean    vtf_lib_begin      (GError   **error);
+void        vtf_lib_end        (void);
+GQuark      vtf_error_quark    (void);
+#define VTF_ERROR (vtf_error_quark ())
 
-	guint32		GeneralFlags; // loaded from an existing VTF
+gboolean    vtf_is_power_of_two (guint value);
+guint       vtf_next_power_of_two (guint value);
 
-	// Resources
-	gchar	LodControlU;
-	gchar	LodControlV;
-} VtfSaveOptions_t;
-
-static const VtfSaveOptions_t DefaultSaveOptions = { TRUE, 4, FALSE, FALSE, TRUE, 0, FALSE, FALSE, TRUE, NOT_BUMP, VTF_MERGE_VISIBLE, 0, 0, 0, 0 };
-
-gchar* vtf_get_data_id(gboolean settings_file);
-#endif
+#endif /* FILE_VTF_H */

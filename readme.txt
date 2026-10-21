@@ -1,20 +1,25 @@
-GIMP VTF PLUG-IN 1.2.1
-Tom Edwards, 19th May 2012
+GIMP VTF PLUG-IN
 *******************************
 
-To install, extract both the EXE and DLL to your
-GIMP plug-ins folder. This is typically at 
-C:\Users\<USER>\.gimp-2.8\plug-ins\.
-
-If you prefer, there is also a plug-ins folder in 
-your main GIMP installation. This is at 
-<gimp install dir>\lib\gimp\2.0\plug-ins\.
-
-To get the latest version of the plugin and download 
-source code visit <http://code.google.com/p/gimp-vtf/>.
+For GIMP 3 on Windows and Linux. See README.md for installation and build
+instructions.
 
 Changes
 *******
+
+2.0
+ * Ported to GIMP 3 (3.0 and later)
+ * Now uses VTFLib++ instead of VTFLib
+ * Linux support; CMake build replaces the Visual Studio project
+ * New pixel formats: ATI2N (BC5), ATI1N (BC4), BC7, BGR888, BGRA8888,
+   BGRX8888, BGRA5551, BGR565, UV88, UVWQ8888
+ * VTF 7.6 support
+ * HDR VTFs open as 32-bit float images
+ * Export settings are stored in the XCF; 1.x .vtf-settings files are
+   imported
+ * Export no longer modifies the image
+ * Layer masks are applied when exporting layers as frames/faces/slices
+ * Unicode file paths work on Windows
 
 1.2.1
  * Fixed errors on Windows XP
