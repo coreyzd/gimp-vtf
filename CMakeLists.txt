@@ -71,8 +71,18 @@ add_subdirectory("${VTFLIB_SOURCE_DIR}" vtflib EXCLUDE_FROM_ALL)
 #  * cmp_core uses SSE4.1 intrinsics whenever _M_X64 is defined, which MinGW
 #    also defines; MSVC accepts them without a flag, GCC/Clang need -msse4.1.
 #  * bc6h_encode.cpp uses std::isinf without including <cmath> (libc++).
+#  * Its SIMD buffers are aligned with __declspec(align(N)), which MinGW turns
+#    into the non-existent __attribute__((align(N))), so the alignment is
+#    dropped and the aligned AVX/AVX-512 loads/stores crash when exporting.
 if(MINGW AND TARGET CMP_Core AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
 	target_compile_options(CMP_Core PUBLIC -msse4.1)
+endif()
+if(MINGW)
+	foreach(cmp_target CMP_Core CMP_Core_SSE CMP_Core_AVX CMP_Core_AVX512 CMP_Compressonator)
+		if(TARGET ${cmp_target})
+			target_compile_options(${cmp_target} PRIVATE "-Dalign(x)=aligned(x)")
+		endif()
+	endforeach()
 endif()
 if(NOT MSVC AND TARGET CMP_Compressonator)
 	set_source_files_properties(
